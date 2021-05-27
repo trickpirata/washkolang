@@ -7,4 +7,34 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <color name="colorMainAppColor">#A9A9A9</color>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#8c000000</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="colorRippleOffWhite">#DBE1EA</color>
+    <color name="colorWhite">#FFFFFF</color>
+    <color name="colorTransparentWhite">#1AFFFFFF</color>
+
+    <color name="colorDarkGray">#6f6f6f</color>
+    <color name="colorGray">#DADADA</color>
+    <color name="colorLightGray">#dfdfdf</color>
+    <color name="colorTransparentGray">#1Adfdfdf</color>
+    <color name="colorPurple">#7c4dff</color>
+    <color name="primaryBackground">#746D8F</color>
+    <color name="colorBlack">#ff000000</color>
+
+    <color name="colorButton">#889BD3</color>
+    <color name="colorButtonLight">#88889BD3</color>
+
+    <color name="colorR1">#32B1C9</color>
+    <color name="colorR2">#32C9BF</color>
+    <color name="colorR3">#32C988</color>
+    <color name="colorR4">#78D360</color>
+    <color name="colorR5">#A2D154</color>
+    <color name="colorR6">#F8DD4B</color>
+    <color name="colorR7">#F8B048</color>
+    <color name="colorR8">#F87944</color>
+    <color name="colorR9">#F05252</color>
+    <color name="colorR10">#C34444</color>
 </resources>
