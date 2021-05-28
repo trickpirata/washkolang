@@ -19,6 +19,14 @@
         <item name="windowNoTitle">true</item>
     </style>
 
+    <!--labels-->
+    <style name="LabelText">
+        <item name="android:layout_marginTop">@dimen/dimen_15</item>
+        <item name="android:layout_marginBottom">@dimen/dimen_5</item>
+        <item name="android:textColor">@color/colorBlack</item>
+        <item name="android:textSize">@dimen/text_16</item>
+    </style>
+
     <style name="Theme.WashKoLang.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="Theme.WashKoLang.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
