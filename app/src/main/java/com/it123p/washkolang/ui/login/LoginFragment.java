@@ -1,5 +1,8 @@
 package com.it123p.washkolang.ui.login;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.ValueEventListener;
 import com.it123p.washkolang.MainActivity;
 import com.it123p.washkolang.utils.*;
 import com.it123p.washkolang.model.UserInfo;
@@ -183,7 +186,38 @@ public class LoginFragment extends Fragment {
 
     private void saveToDB(JSONObject object) {
         FirebaseUser firebaseUser = mAuth.getCurrentUser();
+        DatabaseReference databaseUser = mDatabase.child("users").child(mAuth.getUid());
 
+        databaseUser.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.getValue() == null) {
+                    //we're new
+                    addUser(object, "customer");
+                } else { //user is present
+                    addUser(object, (String) snapshot.child("type").getValue());
+                    if (progress.isShowing()) {
+                        progress.dismiss();
+                    }
+                    goToMain();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+
+    }
+
+    private void goToMain() {
+        Intent intent = new Intent(getActivity(), MainActivity.class);
+        startActivity(intent);
+    }
+
+    private void addUser(JSONObject object, String currentType) {
+        FirebaseUser firebaseUser = mAuth.getCurrentUser();
         try {
             UserInfo user = new UserInfo();
             user.authId = firebaseUser.getUid();
@@ -193,7 +227,8 @@ public class LoginFragment extends Fragment {
             user.lastName = object.getString("last_name");
             String image_url = "https://graph.facebook.com/" + user.facebookId  + "/picture?type=normal";
             user.profileUrl = image_url;
-            user.type = "customer";
+            user.type = currentType;
+
             user.isOnline = true;
             mDatabase.child("users").child(user.authId).setValue(user);
         } catch (JSONException e) {
@@ -203,10 +238,5 @@ public class LoginFragment extends Fragment {
             progress.dismiss();
         }
         goToMain();
-    }
-
-    private void goToMain() {
-        Intent intent = new Intent(getActivity(), MainActivity.class);
-        startActivity(intent);
     }
 }

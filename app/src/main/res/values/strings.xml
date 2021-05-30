@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Wash Ko Lang</string>
+    <string name="createwashlabel">Book an appointment</string>
     <string name="navigation_drawer_open">Open navigation drawer</string>
     <string name="navigation_drawer_close">Close navigation drawer</string>
     <string name="nav_header_title">Android Studio</string>
@@ -14,4 +15,11 @@
     <string name="facebook_app_id">957309908419078</string>
     <string name="fb_login_protocol_scheme">fb957309908419078</string>
     <string name="google_maps_key">AIzaSyB0anEb0AXLH9U4BT20UBcHVbpmXndegec</string>
+    <string name="txtPlateNumberHint">Plate Number</string>
+    <string name="txtCarMakeHint">Car Make(Toyota, Honda etc)</string>
+    <string name="txtCarColorHint">Car Color</string>
+    <string name="txtCarModelHint">Car Model(Vios, Civic, Mirage)</string>
+    <string name="btnBookText">Book Now!</string>
+
+    <string name="default_notification_channel_id">washkolang_notif</string>
 </resources>

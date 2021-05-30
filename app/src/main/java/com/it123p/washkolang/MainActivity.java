@@ -15,6 +15,8 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.Menu;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,16 +28,22 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.it123p.washkolang.ui.home.HomeFragment;
 import com.it123p.washkolang.utils.Constants;
+import com.it123p.washkolang.model.UserInfo;
+import com.it123p.washkolang.utils.UserSingleton;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
@@ -62,14 +70,13 @@ public class MainActivity extends AppCompatActivity {
     //Location
     private FusedLocationProviderClient mFusedLocationClient;
     private int PERMISSION_ID = 44;
-    private LocationListener homeFragmentListener;
 
     // UI
     private TextView txtName;
     private TextView txtEmail;
     private ProfilePictureView imgUser;
     private NavController navController;
-
+    private FloatingActionButton btnCreateOrder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,14 +84,13 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-//        FloatingActionButton fab = findViewById(R.id.fab);
-//        fab.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
-//            }
-//        });
+        btnCreateOrder = findViewById(R.id.fab);
+        btnCreateOrder.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                goToCreateWash();
+            }
+        });
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
         View headerView = navigationView.getHeaderView(0);
@@ -100,9 +106,7 @@ public class MainActivity extends AppCompatActivity {
         navController = Navigation.findNavController(this, R.id.nav_host_fragment);
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
-
         setup();
-        setupLocation();
         checkIfLoggedIn();
     }
 
@@ -124,12 +128,7 @@ public class MainActivity extends AppCompatActivity {
         mAuth = FirebaseAuth.getInstance();
         //Setup map
         //for map
-//        fragment = new HomeFragment();
-//
-//        getSupportFragmentManager()
-//                .beginTransaction()
-//                .replace(R.id.frameLayout, fragment)
-//                .commit();
+        setupLocation();
     }
 
     private void setupLocation() {
@@ -144,27 +143,37 @@ public class MainActivity extends AppCompatActivity {
         if (user == null) {
             Intent intent = new Intent(this, LoginActivity.class);
             startActivity(intent);
+        } else {
+            getFCMToken();
+            progress.show();
+            //Load user
+            DatabaseReference users = FirebaseDatabase.getInstance(Constants.FIREBASE_DB_URL).getReference("users");
+
+            users.child(user.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    String fullName = (String) snapshot.child("firstName").getValue() + " " + (String) snapshot.child("lastName").getValue();
+                    txtName.setText(fullName);
+                    txtEmail.setText((String) snapshot.child("email").getValue());
+                    imgUser.setProfileId((String) snapshot.child("facebookId").getValue());
+                    if (((String) snapshot.child("type").getValue()).equals("operator")) {
+                        btnCreateOrder.setVisibility(View.INVISIBLE);
+                    }
+                    UserInfo userInfo = new UserInfo();
+                    userInfo.firstName = (String) snapshot.child("firstName").getValue();
+                    userInfo.lastName = (String) snapshot.child("lastName").getValue();
+                    userInfo.type = (String) snapshot.child("type").getValue();
+                    UserSingleton.getInstance().setCurrentUser(userInfo);
+
+                    progress.dismiss();
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    progress.dismiss();
+                }
+            });
         }
-
-        progress.show();
-        //Load user
-        DatabaseReference users = FirebaseDatabase.getInstance(Constants.FIREBASE_DB_URL).getReference("users");
-
-        users.child(user.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String fullName = (String) snapshot.child("firstName").getValue() + " " + (String) snapshot.child("lastName").getValue();
-                txtName.setText(fullName);
-                txtEmail.setText((String) snapshot.child("email").getValue());
-                imgUser.setProfileId((String) snapshot.child("facebookId").getValue());
-                progress.dismiss();
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                progress.dismiss();
-            }
-        });
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -281,13 +290,52 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void getFCMToken() {
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(new OnCompleteListener<String>() {
+                    @Override
+                    public void onComplete(@NonNull Task<String> task) {
+                        if (!task.isSuccessful()) {
+                            Log.e(TAG, "Fetching FCM registration token failed", task.getException());
+                            return;
+                        }
+
+                        // Get new FCM registration token
+                        String token = task.getResult();
+
+                        FirebaseUser firebaseUser = mAuth.getCurrentUser();
+                        DatabaseReference users = FirebaseDatabase.getInstance(Constants.FIREBASE_DB_URL).getReference("users");
+                        DatabaseReference databaseUser = users.child(mAuth.getUid());
+
+                        databaseUser.child("token").setValue(token);
+                        // Log and toast
+//                        String msg = getString(R.string.msg_token_fmt, token);
+//                        Log.d(TAG, msg);
+//                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+    }
+
     private void updateLocation(Location location) {
         Fragment navHostFragment = getSupportFragmentManager().getPrimaryNavigationFragment();
         Fragment fragment = navHostFragment.getChildFragmentManager().getFragments().get(0);
 
-//        HomeFragment homeFragment = (HomeFragment) navControllergetFragments().get(0);
         if (fragment != null) {
             ((HomeFragment) fragment).listener.didUpdateLocation(location);
+        }
+    }
+
+    private void goToCreateWash() {
+        Fragment navHostFragment = getSupportFragmentManager().getPrimaryNavigationFragment();
+        Fragment fragment = navHostFragment.getChildFragmentManager().getFragments().get(0);
+
+        if (fragment != null) {
+            HomeFragment homeFragment = ((HomeFragment) fragment);
+            Intent intent = new Intent(this, CreateWashActivity.class);
+            intent.putExtra("location", homeFragment.getSelectedLocation());
+            intent.putExtra("address", homeFragment.getSelectedAddress());
+            startActivity(intent);
         }
     }
 }
