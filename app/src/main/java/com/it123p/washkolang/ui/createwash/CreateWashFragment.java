@@ -21,13 +21,20 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.firebase.geofire.GeoFire;
+import com.firebase.geofire.GeoLocation;
+import com.firebase.geofire.GeoQuery;
+import com.firebase.geofire.GeoQueryEventListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.it123p.washkolang.R;
 import com.it123p.washkolang.model.OrderInfo;
+import com.it123p.washkolang.ui.home.MapLocationData;
 import com.it123p.washkolang.utils.Constants;
+import com.it123p.washkolang.utils.UserSingleton;
 
 public class CreateWashFragment extends Fragment implements AdapterView.OnItemSelectedListener {
 
@@ -36,6 +43,7 @@ public class CreateWashFragment extends Fragment implements AdapterView.OnItemSe
     private CreateWashViewModel mViewModel;
 
     private String selectedSize = "Small";
+
     public static CreateWashFragment newInstance() {
         return new CreateWashFragment();
     }
@@ -106,10 +114,12 @@ public class CreateWashFragment extends Fragment implements AdapterView.OnItemSe
         ProgressDialog progress = new ProgressDialog(getContext());
         progress.setTitle("Please wait.");
         progress.show();
-        mViewModel.createOrder(order, new ResultHandler<Void>() {
+        mViewModel.createOrder(order, new ResultHandler<OrderInfo>() {
             @Override
-            public void onSuccess(Void data) {
-
+            public void onSuccess(OrderInfo data) {
+                UserSingleton.getInstance().setCurrentOrderId(data.orderId, getContext());
+                progress.dismiss();
+//                getActivity().finish();
             }
 
             @Override
@@ -118,12 +128,13 @@ public class CreateWashFragment extends Fragment implements AdapterView.OnItemSe
             }
 
             @Override
-            public Void onSuccess() {
-                progress.dismiss();
-                getActivity().finish();
+            public OrderInfo onSuccess() {
                 return null;
             }
         });
         Log.e("Selected Location" , location.toString());
     }
+
+
+
 }

@@ -1,7 +1,9 @@
 package com.it123p.washkolang.ui.home;
 
 import android.location.Location;
+import android.view.View;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -11,12 +13,16 @@ import com.firebase.geofire.GeoLocation;
 import com.firebase.geofire.GeoQuery;
 import com.firebase.geofire.GeoQueryEventListener;
 import com.firebase.geofire.core.GeoHash;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.FirebaseError;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import com.it123p.washkolang.model.OrderInfo;
 import com.it123p.washkolang.model.UserInfo;
 import com.it123p.washkolang.utils.Constants;
 import com.it123p.washkolang.utils.UserSingleton;
@@ -68,6 +74,27 @@ public class HomeViewModel extends ViewModel {
 
     }
 
+    public void getOrderInfo(String orderId, ResultHandler<OrderInfo> handler) {
+        mDatabase.child("orders").child(orderId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                String token = (String) snapshot.child("token").getValue();
+
+                if (snapshot.exists()){
+                    OrderInfo order = snapshot.getValue(OrderInfo.class);
+                    order.orderId = snapshot.getKey();
+                    handler.onSuccess(order);
+                }
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+    }
+
     public void getMapInfo(Location currentLocation, ResultHandler<MapLocationData> handler) {
         GeoLocation geoLocation = new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude());
         if(geoQuery == null) {
@@ -102,6 +129,20 @@ public class HomeViewModel extends ViewModel {
                 }
             });
         }
-
     }
+
+    public void acceptOrder(String orderId) {
+        mDatabase.child("orders").child(orderId).child("operator").setValue(FirebaseAuth.getInstance().getCurrentUser().getUid());
+        mDatabase.child("orders").child(orderId).child("status").setValue("accepted");
+    }
+
+    public void updateOrderStatus(String orderId, String status, ResultHandler<Void> handler) {
+        mDatabase.child("orders").child(orderId).child("status").setValue(status).addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void aVoid) {
+                handler.onSuccess();
+            }
+        });
+    }
+
 }

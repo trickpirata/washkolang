@@ -149,6 +149,7 @@ public class MainActivity extends AppCompatActivity {
             //Load user
             DatabaseReference users = FirebaseDatabase.getInstance(Constants.FIREBASE_DB_URL).getReference("users");
 
+            //get specific user
             users.child(user.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -163,7 +164,8 @@ public class MainActivity extends AppCompatActivity {
                     userInfo.firstName = (String) snapshot.child("firstName").getValue();
                     userInfo.lastName = (String) snapshot.child("lastName").getValue();
                     userInfo.type = (String) snapshot.child("type").getValue();
-                    UserSingleton.getInstance().setCurrentUser(userInfo);
+
+                    UserSingleton.getInstance().setCurrentUser(snapshot.getValue(UserInfo.class));
 
                     progress.dismiss();
                 }

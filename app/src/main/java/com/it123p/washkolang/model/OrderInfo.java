@@ -12,4 +12,11 @@ public class OrderInfo {
     public double longitude;
     public String address;
     public String status;
+    public String orderId;
+
+    public OrderInfo() {
+
+    }
+
+
 }

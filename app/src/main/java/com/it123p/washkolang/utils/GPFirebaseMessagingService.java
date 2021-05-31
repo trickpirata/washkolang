@@ -12,10 +12,12 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.media.RingtoneManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.util.Log;
 //import android.support.v4.app.NotificationCompat;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -29,6 +31,8 @@ import com.google.firebase.messaging.RemoteMessage;
 import com.it123p.washkolang.MainActivity;
 import com.it123p.washkolang.R;
 
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
@@ -36,6 +40,14 @@ import java.util.Map;
 public class GPFirebaseMessagingService extends FirebaseMessagingService {
 
     private static final String TAG = "GPFirebaseMessagingService";
+
+    private LocalBroadcastManager broadcaster;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        broadcaster = LocalBroadcastManager.getInstance(this);
+    }
 
     @Override
     public void onNewToken(@NonNull String s) {
@@ -55,10 +67,12 @@ public class GPFirebaseMessagingService extends FirebaseMessagingService {
                         String token = task.getResult();
 
                         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-                        DatabaseReference users = FirebaseDatabase.getInstance(Constants.FIREBASE_DB_URL).getReference("users");
-                        DatabaseReference databaseUser = users.child(FirebaseAuth.getInstance().getUid());
+                        if (firebaseUser != null) {
+                            DatabaseReference users = FirebaseDatabase.getInstance(Constants.FIREBASE_DB_URL).getReference("users");
+                            DatabaseReference databaseUser = users.child(FirebaseAuth.getInstance().getUid());
 
-                        databaseUser.child("token").setValue(token);
+                            databaseUser.child("token").setValue(token);
+                        }
                     }
                 });
     }
@@ -88,6 +102,8 @@ public class GPFirebaseMessagingService extends FirebaseMessagingService {
      */
     private void sendNotification(RemoteMessage.Notification notification, Map<String, String> data) {
         String channelTag = getResources().getString(R.string.default_notification_channel_id);
+
+
         Bitmap icon = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -104,18 +120,6 @@ public class GPFirebaseMessagingService extends FirebaseMessagingService {
                 .setLights(Color.RED, 1000, 300)
                 .setDefaults(Notification.DEFAULT_VIBRATE)
                 .setSmallIcon(R.mipmap.ic_launcher);
-//        try {
-//            String picture_url = data.get("picture_url");
-//            if (picture_url != null && !"".equals(picture_url)) {
-//                URL url = new URL(picture_url);
-//                Bitmap bigPicture = BitmapFactory.decodeStream(url.openConnection().getInputStream());
-//                notificationBuilder.setStyle(
-//                        new NotificationCompat.BigPictureStyle().bigPicture(bigPicture).setSummaryText(notification.getBody())
-//                );
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -132,6 +136,17 @@ public class GPFirebaseMessagingService extends FirebaseMessagingService {
             notificationManager.createNotificationChannel(channel);
         }
         notificationManager.notify(0, notificationBuilder.build());
+        JSONObject dataJson = new JSONObject(data);
+        notifyFragment(dataJson.toString());
+    }
+
+    private void notifyFragment(String json){
+        Intent intent = new Intent("ORDER_RECEIVED");
+        Bundle bundle = new Bundle();
+        bundle.putString("json", json);
+        intent.putExtra("json", json);
+        intent.putExtras(bundle);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 }
 
