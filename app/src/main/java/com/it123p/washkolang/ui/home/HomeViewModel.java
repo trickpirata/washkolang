@@ -1,9 +1,18 @@
 package com.it123p.washkolang.ui.home;
 
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.location.Location;
+import android.util.DisplayMetrics;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -17,16 +26,20 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.FirebaseError;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.it123p.washkolang.R;
 import com.it123p.washkolang.model.OrderInfo;
 import com.it123p.washkolang.model.UserInfo;
 import com.it123p.washkolang.utils.Constants;
 import com.it123p.washkolang.utils.UserSingleton;
 import com.it123p.washkolang.ui.createwash.ResultHandler;
+
+import de.hdodenhof.circleimageview.CircleImageView;
 
 public class HomeViewModel extends ViewModel {
 
@@ -75,7 +88,7 @@ public class HomeViewModel extends ViewModel {
     }
 
     public void getOrderInfo(String orderId, ResultHandler<OrderInfo> handler) {
-        mDatabase.child("orders").child(orderId).addListenerForSingleValueEvent(new ValueEventListener() {
+        mDatabase.child("orders").child(orderId).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 String token = (String) snapshot.child("token").getValue();
@@ -93,41 +106,71 @@ public class HomeViewModel extends ViewModel {
 
             }
         });
+
+        mDatabase.child("orders").child(orderId).addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+                if (snapshot.exists()){
+//                    handler.onSuccess();
+//                    OrderInfo order = snapshot.getValue(OrderInfo.class);
+//                    order.orderId = snapshot.getKey();
+//                    handler.onSuccess(snapshot.getKey());
+                }
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                handler.onSuccess();
+//                if (snapshot.exists()){
+//                    OrderInfo order = snapshot.getValue(OrderInfo.class);
+//                    order.orderId = snapshot.getKey();
+//                    handler.onSuccess(order);
+//                }
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+//        mDatabase.child("orders").child(orderId).addListenerForSingleValueEvent(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(@NonNull DataSnapshot snapshot) {
+//                String token = (String) snapshot.child("token").getValue();
+//
+//                if (snapshot.exists()){
+//                    OrderInfo order = snapshot.getValue(OrderInfo.class);
+//                    order.orderId = snapshot.getKey();
+//                    handler.onSuccess(order);
+//                }
+//
+//            }
+//
+//            @Override
+//            public void onCancelled(@NonNull DatabaseError error) {
+//
+//            }
+//        });
     }
 
-    public void getMapInfo(Location currentLocation, ResultHandler<MapLocationData> handler) {
+    public void getMapInfo(Location currentLocation, GeoQueryEventListener handler) {
         GeoLocation geoLocation = new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude());
         if(geoQuery == null) {
             DatabaseReference ref = mDatabase.child("area");
             GeoFire geoFire = new GeoFire(ref);
             geoQuery = geoFire.queryAtLocation(geoLocation, 10); //10kilometers
-            geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
-                @Override
-                public void onKeyEntered(String key, GeoLocation location) {
-                    //System.out.println(String.format("Key %s entered the search area at [%f,%f]", key, location.latitude, location.longitude));
-                    handler.onSuccess(new MapLocationData(location, key));
-                }
-
-                @Override
-                public void onKeyExited(String key) {
-                    System.out.println(String.format("Key %s is no longer in the search area", key));
-                }
-
-                @Override
-                public void onKeyMoved(String key, GeoLocation location) {
-                    System.out.println(String.format("Key %s moved within the search area to [%f,%f]", key, location.latitude, location.longitude));
-                }
-
-                @Override
-                public void onGeoQueryReady() {
-                    System.out.println("All initial data has been loaded and events have been fired!");
-                }
-
-                @Override
-                public void onGeoQueryError(DatabaseError error) {
-                    System.err.println("There was an error with this query: " + error);
-                }
-            });
+            geoQuery.addGeoQueryEventListener(handler);
         }
     }
 
@@ -143,6 +186,27 @@ public class HomeViewModel extends ViewModel {
                 handler.onSuccess();
             }
         });
+    }
+
+    public static Bitmap createCustomMarker(Context context, @DrawableRes int resource, String _name) {
+
+        View marker = ((LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE)).inflate(R.layout.custom_marker_layout, null);
+
+        CircleImageView markerImage = (CircleImageView) marker.findViewById(R.id.user_dp);
+        markerImage.setImageResource(resource);
+
+
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        ((Activity) context).getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        marker.setLayoutParams(new ViewGroup.LayoutParams(52, ViewGroup.LayoutParams.WRAP_CONTENT));
+        marker.measure(displayMetrics.widthPixels, displayMetrics.heightPixels);
+        marker.layout(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels);
+        marker.buildDrawingCache();
+        Bitmap bitmap = Bitmap.createBitmap(marker.getMeasuredWidth(), marker.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        marker.draw(canvas);
+
+        return bitmap;
     }
 
 }

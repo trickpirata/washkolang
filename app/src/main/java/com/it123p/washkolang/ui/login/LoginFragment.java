@@ -149,7 +149,9 @@ public class LoginFragment extends Fragment {
         Log.d(TAG, "handleFacebookAccessToken:" + token);
 
         AuthCredential credential = FacebookAuthProvider.getCredential(token.getToken());
-
+        ProgressDialog progress = new ProgressDialog(getContext());
+        progress.setTitle("Please wait.");
+        progress.show();
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(getActivity(), new OnCompleteListener<AuthResult>() {
                     @Override
@@ -159,11 +161,13 @@ public class LoginFragment extends Fragment {
                             Log.d(TAG, "signInWithCredential:success");
                             Toast.makeText(getActivity(), "Authentication Succeeded.", Toast.LENGTH_SHORT).show();
                             getUserProfile(token);
+
                         } else {
                             // If sign-in fails, a message will display to the user.
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
                             Toast.makeText(getActivity(), "Authentication failed.", Toast.LENGTH_SHORT).show();
                         }
+                        progress.dismiss();
                     }
                 });
     }
@@ -225,10 +229,11 @@ public class LoginFragment extends Fragment {
             user.email = object.getString("email");
             user.firstName = object.getString("first_name");
             user.lastName = object.getString("last_name");
+            user.birthdate = 0;
             String image_url = "https://graph.facebook.com/" + user.facebookId  + "/picture?type=normal";
             user.profileUrl = image_url;
             user.type = currentType;
-
+            user.isSuspended = false;
             user.isOnline = true;
             mDatabase.child("users").child(user.authId).setValue(user);
         } catch (JSONException e) {

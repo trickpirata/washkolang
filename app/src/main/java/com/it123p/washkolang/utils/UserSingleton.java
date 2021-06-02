@@ -26,10 +26,11 @@ public class UserSingleton {
         SharedPreferences.Editor editor = context.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit();
         if(orderId == null) {
             editor.remove("order");
-            return;
+        } else {
+            editor.putString("order", orderId);
         }
 
-        editor.putString("order", orderId);
+
         editor.commit();
 
     }

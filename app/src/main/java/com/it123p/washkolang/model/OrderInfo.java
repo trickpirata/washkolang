@@ -13,7 +13,8 @@ public class OrderInfo {
     public String address;
     public String status;
     public String orderId;
-
+    public String price;
+    public long date;
     public OrderInfo() {
 
     }

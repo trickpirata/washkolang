@@ -40,6 +40,7 @@ import com.facebook.FacebookException;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
 import com.firebase.geofire.GeoLocation;
+import com.firebase.geofire.GeoQueryEventListener;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -47,12 +48,18 @@ import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
+import com.it123p.washkolang.MainActivity;
+import com.it123p.washkolang.OrderListener;
 import com.it123p.washkolang.R;
+import com.it123p.washkolang.model.MarkerInfo;
 import com.it123p.washkolang.model.OrderInfo;
 import com.it123p.washkolang.ui.createwash.ResultHandler;
 import com.it123p.washkolang.utils.Constants;
@@ -63,15 +70,19 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-public class HomeFragment extends Fragment implements OnMapReadyCallback, LocationListener, ActivityCompat.OnRequestPermissionsResultCallback, View.OnClickListener {
+import static com.it123p.washkolang.ui.home.HomeViewModel.createCustomMarker;
+
+public class HomeFragment extends Fragment implements OnMapReadyCallback, LocationListener, ActivityCompat.OnRequestPermissionsResultCallback, View.OnClickListener, OrderListener {
 
     private HomeViewModel homeViewModel;
 
     public LocationListener listener;
+    public OrderListener orderListener;
     private Geocoder geocoder;
     private GoogleMap mMap;
     private int PERMISSION_ID = 44;
@@ -80,6 +91,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
     private BroadcastReceiver receiver;
     private boolean isMapReady = false;
     private OrderInfo currentOrder = null;
+    private ArrayList<MarkerInfo> markerList = new ArrayList<>();
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -96,7 +108,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (intent.getExtras().getString("json") != null) {
+                if (intent.getAction().equals("ORDER_RECEIVED") && intent.getExtras().getString("json") != null) {
                     try {
                         JSONObject json = new JSONObject(intent.getExtras().getString("json"));
 
@@ -106,7 +118,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                         e.printStackTrace();
                     }
 
-                } else {
+                } else if (intent.getAction().equals("ORDER_CREATED") && intent.getExtras().getString("orderId") != null) {
+                    String orderId = intent.getExtras().getString("orderId");
+                    loadOrder(orderId);
+                }
+                else {
                     //Todo: Show message
                 }
 
@@ -120,10 +136,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        UserSingleton.getInstance().setCurrentOrderId(null, getContext());
         ConstraintLayout bottomLayout = (ConstraintLayout) view.findViewById(R.id.orderLayout);
         String currentOrder = UserSingleton.getInstance().getCurrentOrderId(getContext());
         if(currentOrder != null && !currentOrder.equals("")) {
-            bottomLayout.setVisibility(View.VISIBLE);
             loadOrder(currentOrder);
         } else {
             bottomLayout.setVisibility(View.INVISIBLE);
@@ -137,6 +153,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
     public void onStart() {
         super.onStart();
         listener = this;
+        orderListener = this;
+        String currentOrder = UserSingleton.getInstance().getCurrentOrderId(getContext());
+        if(currentOrder != null && !currentOrder.equals("")) {
+            loadOrder(currentOrder);
+        }
     }
 
     // Get a handle to the GoogleMap object and display marker.
@@ -245,9 +266,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
             return;
         }
 
-        userMarker.position(latLng);
-
-        mMap.addMarker(userMarker);
+        addUpdateMarker(FirebaseAuth.getInstance().getCurrentUser().getUid(), new GeoLocation(latLng.latitude, latLng.longitude));
     }
 
     private String getAddress(Location location) {
@@ -279,31 +298,69 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         CameraUpdate update = CameraUpdateFactory.newLatLngZoom(new LatLng(homeViewModel.lastKnownLocation.getLatitude(), homeViewModel.lastKnownLocation.getLongitude()),
                 10);
         mMap.moveCamera(update);
-        homeViewModel.getMapInfo(homeViewModel.lastKnownLocation, new ResultHandler<MapLocationData>() {
+        homeViewModel.getMapInfo(homeViewModel.lastKnownLocation, new GeoQueryEventListener() {
             @Override
-            public void onSuccess(MapLocationData data) {
-                //TODO: display geolocation
-                //display other data
-                if(!FirebaseAuth.getInstance().getCurrentUser().getUid().equals(data.owner)) {
-                    MarkerOptions marker = new MarkerOptions();
+            public void onKeyEntered(String key, GeoLocation location) {
+                addUpdateMarker(key, location);
+            }
 
-                    marker.position(new LatLng(data.location.latitude, data.location.longitude));
+            @Override
+            public void onKeyExited(String key) {
+                if(!FirebaseAuth.getInstance().getCurrentUser().getUid().equals(key)) {
+                    for(int k = 0; k < markerList.size(); k++){
+                        MarkerInfo marker = markerList.get(k);
+                        if(marker.userId.equals(key)) { //already added, remove
+                            marker.marker.remove();
+                            markerList.remove(marker);
+                            break;
+                        }
+                    }
 
-                    mMap.addMarker(marker);
                 }
+            }
+
+            @Override
+            public void onKeyMoved(String key, GeoLocation location) {
+                addUpdateMarker(key, location);
+            }
+
+            @Override
+            public void onGeoQueryReady() {
 
             }
 
             @Override
-            public void onFailure(Exception e) {
+            public void onGeoQueryError(DatabaseError error) {
 
-            }
-
-            @Override
-            public MapLocationData onSuccess() {
-                return null;
             }
         });
+    }
+
+    private void addUpdateMarker(String key, GeoLocation location) {
+        boolean addMarker = true;
+        for(int k = 0; k < markerList.size(); k++){
+            MarkerInfo marker = markerList.get(k);
+            if(marker.userId.equals(key)) { //already added, update location
+                //update marker
+                marker.marker.setPosition(new LatLng(location.latitude, location.longitude));
+                addMarker = false;
+                break;
+            }
+        }
+        if(addMarker) {
+            MarkerOptions marker = new MarkerOptions();
+            if(!FirebaseAuth.getInstance().getCurrentUser().getUid().equals(key)) {
+                marker.icon(BitmapDescriptorFactory.fromBitmap(
+                        createCustomMarker(getContext(),R.drawable.carpool,"")));
+            }
+
+            marker.position(new LatLng(location.latitude, location.longitude));
+            MarkerInfo markerInfo = new MarkerInfo();
+            markerInfo.marker = mMap.addMarker(marker);
+            markerInfo.userId = key;
+
+            markerList.add(markerInfo);
+        }
     }
 
     private void receivedOrder(String orderId) {
@@ -329,6 +386,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
     }
 
     private void showAlert(OrderInfo order) {
+        if (currentOrder != null) {
+            return;
+        }
         AlertDialog alertDialog = new AlertDialog.Builder(getContext()).create();
 
         alertDialog.setTitle("Order Received!");
@@ -385,28 +445,45 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         TextView txtCarSize = (TextView) getView().findViewById(R.id.txtCarSize);
         TextView txtPrice = (TextView) getView().findViewById(R.id.txtPrice);
 
+        boolean isOperator = true;
+        if(order.author.equals(FirebaseAuth.getInstance().getCurrentUser().getUid())) {
+            btnCancel.setText("Cancel");
+            isOperator = false;
+        }
         txtOrderStatus.setText("Order Status: " + order.status);
         txtCar.setText("Make: " + order.carMake);
         txtCarSize.setText("Size: " +order.carSize);
         txtPrice.setText("Price: " +"250");
         ConstraintLayout bottomLayout = (ConstraintLayout) getView().findViewById(R.id.orderLayout);
         currentOrder = order;
-        if(order.status.equals("accepted")) {
-            bottomLayout.setVisibility(View.VISIBLE);
-            btnCancel.setText("Arrived");
-        } else if(order.status.equals("arrived")) {
-            bottomLayout.setVisibility(View.VISIBLE);
-            btnCancel.setText("Finished");
-        } else if(order.status.equals("finished")) {
-            bottomLayout.setVisibility(View.INVISIBLE);
-            UserSingleton.getInstance().setCurrentOrderId(null, getContext());
-            currentOrder = null;
+        if(isOperator) {
+            if(order.status.equals("accepted")) {
+                bottomLayout.setVisibility(View.VISIBLE);
+                btnCancel.setText("Arrived");
+            } else if(order.status.equals("arrived")) {
+                bottomLayout.setVisibility(View.VISIBLE);
+                btnCancel.setText("Finished");
+            } else if(order.status.equals("finished")) {
+                bottomLayout.setVisibility(View.INVISIBLE);
+            }
+        } else {
+            if (order.status.equals("created")) {
+                bottomLayout.setVisibility(View.VISIBLE);
+                btnCancel.setText("Cancel");
+            } else if (order.status.equals("finished")) {
+                bottomLayout.setVisibility(View.INVISIBLE);
+                UserSingleton.getInstance().setCurrentOrderId(null, getContext());
+                currentOrder = null;
+            } else if (order.status.equals("cancel")) {
+                bottomLayout.setVisibility(View.INVISIBLE);
+
+
+            }
         }
-
-
     }
 
     private void updateOrderInfo() {
+
         //We're the operator of this current order
         if(currentOrder.operator.equals(FirebaseAuth.getInstance().getCurrentUser().getUid())) {
             if(currentOrder.status.equals("accepted")) {
@@ -445,10 +522,34 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                         return null;
                     }
                 });
+                UserSingleton.getInstance().setCurrentOrderId(null, getContext());
+                currentOrder = null;
             }
         } else { //we're the user
+            homeViewModel.updateOrderStatus(currentOrder.orderId, "cancel", new ResultHandler<Void>() {
+                @Override
+                public void onSuccess(Void data) {
 
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+
+                }
+
+                @Override
+                public Void onSuccess() {
+                    loadOrder(currentOrder.orderId);
+                    return null;
+                }
+            });
+            UserSingleton.getInstance().setCurrentOrderId(null, getContext());
+            currentOrder = null;
         }
     }
 
+    @Override
+    public void didCreateOrder(OrderInfo order) {
+        loadOrder(order.orderId);
+    }
 }

@@ -8,5 +8,11 @@ public class UserInfo {
     public String authId;
     public String profileUrl;
     public String type;
+    public long birthdate;
+    public String gender;
+    public String phoneNumber;
+    public String connectingId;
     public boolean isOnline;
+    public boolean isSuspended;
+
 }

@@ -2,8 +2,10 @@ package com.it123p.washkolang;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -20,6 +22,7 @@ import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.facebook.AccessToken;
 import com.facebook.login.widget.ProfilePictureView;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -34,6 +37,7 @@ import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -46,6 +50,7 @@ import com.it123p.washkolang.model.UserInfo;
 import com.it123p.washkolang.utils.UserSingleton;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
@@ -129,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
         //Setup map
         //for map
         setupLocation();
+        monitorAvailabilty();
     }
 
     private void setupLocation() {
@@ -157,9 +163,12 @@ public class MainActivity extends AppCompatActivity {
                     txtName.setText(fullName);
                     txtEmail.setText((String) snapshot.child("email").getValue());
                     imgUser.setProfileId((String) snapshot.child("facebookId").getValue());
-                    if (((String) snapshot.child("type").getValue()).equals("operator")) {
-                        btnCreateOrder.setVisibility(View.INVISIBLE);
+                    if (snapshot.child("type").exists()) {
+                        if (((String) snapshot.child("type").getValue()).equals("operator")) {
+                            btnCreateOrder.setVisibility(View.INVISIBLE);
+                        }
                     }
+
                     UserInfo userInfo = new UserInfo();
                     userInfo.firstName = (String) snapshot.child("firstName").getValue();
                     userInfo.lastName = (String) snapshot.child("lastName").getValue();
@@ -214,6 +223,93 @@ public class MainActivity extends AppCompatActivity {
             // request for permissions
             requestPermissions();
         }
+    }
+
+    private void monitorAvailabilty() {
+        DatabaseReference database = FirebaseDatabase.getInstance(Constants.FIREBASE_DB_URL).getReference("availability");
+
+        database.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()){
+                    if(((String)snapshot.child("status").getValue()).equals("false")) {
+
+                        AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
+
+                        alertDialog.setTitle("Closed");
+
+                        alertDialog.setMessage("Reason" + (String)snapshot.child("reason").getValue());
+
+                        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "Okay", new DialogInterface.OnClickListener() {
+
+                            public void onClick(DialogInterface dialog, int id) {
+
+                                finishAffinity();
+
+                            } });
+
+
+                        alertDialog.show();
+
+                    }
+
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+        database.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                if (snapshot.exists()){
+                    if(((String)snapshot.child("status").getValue()).equals("false")) {
+
+                        AlertDialog alertDialog = new AlertDialog.Builder(getApplicationContext()).create();
+
+                        alertDialog.setTitle("Closed");
+
+                        alertDialog.setMessage("Reason" + (String)snapshot.child("reason").getValue());
+
+                        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "Okay", new DialogInterface.OnClickListener() {
+
+                            public void onClick(DialogInterface dialog, int id) {
+
+                                finishAffinity();
+
+                            } });
+
+
+                        alertDialog.show();
+
+                    }
+
+                }
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
     }
 
     @SuppressLint("MissingPermission")
@@ -320,10 +416,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateLocation(Location location) {
+        if(AccessToken.getCurrentAccessToken() == null) {
+            return;
+        }
         Fragment navHostFragment = getSupportFragmentManager().getPrimaryNavigationFragment();
         Fragment fragment = navHostFragment.getChildFragmentManager().getFragments().get(0);
 
-        if (fragment != null) {
+        if (fragment != null && fragment instanceof HomeFragment) {
             ((HomeFragment) fragment).listener.didUpdateLocation(location);
         }
     }
@@ -332,11 +431,12 @@ public class MainActivity extends AppCompatActivity {
         Fragment navHostFragment = getSupportFragmentManager().getPrimaryNavigationFragment();
         Fragment fragment = navHostFragment.getChildFragmentManager().getFragments().get(0);
 
-        if (fragment != null) {
+        if (fragment != null && fragment instanceof HomeFragment) {
             HomeFragment homeFragment = ((HomeFragment) fragment);
             Intent intent = new Intent(this, CreateWashActivity.class);
             intent.putExtra("location", homeFragment.getSelectedLocation());
             intent.putExtra("address", homeFragment.getSelectedAddress());
+
             startActivity(intent);
         }
     }

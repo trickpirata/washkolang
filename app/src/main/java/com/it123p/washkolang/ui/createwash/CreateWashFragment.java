@@ -3,12 +3,14 @@ package com.it123p.washkolang.ui.createwash;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -32,6 +34,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.it123p.washkolang.R;
 import com.it123p.washkolang.model.OrderInfo;
+import com.it123p.washkolang.ui.home.HomeFragment;
 import com.it123p.washkolang.ui.home.MapLocationData;
 import com.it123p.washkolang.utils.Constants;
 import com.it123p.washkolang.utils.UserSingleton;
@@ -110,6 +113,17 @@ public class CreateWashFragment extends Fragment implements AdapterView.OnItemSe
         order.latitude = location.getLatitude();
         order.longitude = location.getLongitude();
         order.address = address;
+        order.date = System.currentTimeMillis();
+
+        if(selectedSize == "Small") {
+            order.price = "150";
+        } else if(selectedSize == "Medium") {
+            order.price = "250";
+        } else if(selectedSize == "Large") {
+            order.price = "350";
+        } else if(selectedSize == "XL") {
+            order.price = "500";
+        }
 
         ProgressDialog progress = new ProgressDialog(getContext());
         progress.setTitle("Please wait.");
@@ -119,7 +133,16 @@ public class CreateWashFragment extends Fragment implements AdapterView.OnItemSe
             public void onSuccess(OrderInfo data) {
                 UserSingleton.getInstance().setCurrentOrderId(data.orderId, getContext());
                 progress.dismiss();
-//                getActivity().finish();
+//                Intent intent = new Intent("ORDER_CREATED");
+//                intent.putExtra("orderId", data.orderId);
+//                Fragment navHostFragment = getParentFragmentManager().getPrimaryNavigationFragment();
+//                Fragment fragment = navHostFragment.getChildFragmentManager().getFragments().get(0);
+//
+//                if (fragment != null && fragment instanceof HomeFragment) {
+//                    ((HomeFragment) fragment).orderListener.didCreateOrder(data);
+//                }
+//                LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
+                getActivity().finish();
             }
 
             @Override
