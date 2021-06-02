@@ -153,8 +153,9 @@ public class HomeViewModel extends ViewModel {
     }
 
     public void acceptOrder(String orderId) {
-        mDatabase.child("orders").child(orderId).child("operator").setValue(FirebaseAuth.getInstance().getCurrentUser().getUid());
-        mDatabase.child("orders").child(orderId).child("status").setValue("accepted");
+        mDatabase.child("orders").child(orderId).child("operator").setValue(FirebaseAuth.getInstance().getCurrentUser().getUid()); //set order operator
+        mDatabase.child("orders").child(orderId).child("status").setValue("accepted"); //set to accept
+        mDatabase.child("users").child(FirebaseAuth.getInstance().getCurrentUser().getUid()).child("orders").push().setValue(orderId); //add to orderhistory
     }
 
     public void updateOrderStatus(String orderId, String status, ResultHandler<Void> handler) {

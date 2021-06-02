@@ -152,7 +152,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
             }
         };
-
+        progressDialog = new ProgressDialog(getContext());
         LocalBroadcastManager.getInstance(getContext()).registerReceiver(receiver, new IntentFilter("ORDER_RECEIVED"));
         return root;
     }
@@ -511,11 +511,19 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         if(order.author.equals(FirebaseAuth.getInstance().getCurrentUser().getUid())) {
             btnCancel.setText("Cancel");
             isOperator = false;
+            //show prompts to user
+            if(order.status.equals("accepted")) {
+                showPrompts("An operator accepted your carwash request and is on its way! Stay put!");
+            } else if(order.status.equals("arrived")) {
+                showPrompts("An operator arrived at the pinned location");
+            } else if(order.status.equals("finished")) {
+                showPrompts("An operator finished washing your car! Thanks!");
+            } else if(order.status.equals("cancel")) {
+                showPrompts("An operator canceled your request :(");
+            }
         } else {
             if (currentOrder == null) {
-                progressDialog = ProgressDialog.show(getContext(), "Please wait.",
-                        "Fetching route information.", true);
-
+                progressDialog.show();
                 LatLng start = new LatLng(homeViewModel.lastKnownLocation.getLatitude(), homeViewModel.lastKnownLocation.getLongitude());
                 LatLng end = new LatLng(order.latitude, order.longitude);
                 requestDirections(start, end);
@@ -571,6 +579,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         }
     }
 
+    private void showPrompts(String message) {
+        AlertDialog alertDialog = new AlertDialog.Builder(getContext()).create();
+
+        alertDialog.setTitle("Status Update");
+
+        alertDialog.setMessage(message);
+
+        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+
+            }
+        });
+
+        alertDialog.show();
+    }
     List<Polyline> polylines = new ArrayList<Polyline>();
     private void requestDirections(LatLng start, LatLng end) {
 
@@ -581,7 +605,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         DirectionsApiRequest req = DirectionsApi.getDirections(context, Double.toString(start.latitude) + "," + Double.toString(start.longitude) , Double.toString(end.latitude) + "," + Double.toString(end.longitude));
         try {
             DirectionsResult res = req.await();
-            progressDialog.dismiss();
             //Loop through legs and steps to get encoded polylines of each step
             if (res.routes != null && res.routes.length > 0) {
                 DirectionsRoute route = res.routes[0];

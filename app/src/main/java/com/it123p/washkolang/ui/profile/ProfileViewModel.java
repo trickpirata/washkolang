@@ -1,8 +1,9 @@
-package com.it123p.washkolang.ui.login;
+package com.it123p.washkolang.ui.profile;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.ViewModel;
 
+import com.firebase.geofire.GeoQuery;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -14,14 +15,14 @@ import com.it123p.washkolang.model.UserInfo;
 import com.it123p.washkolang.ui.createwash.ResultHandler;
 import com.it123p.washkolang.utils.Constants;
 
-public class LoginViewModel extends ViewModel {
+public class ProfileViewModel extends ViewModel {
 
-
+    public String[] genders = { "Male", "Female", "Rather not say"};
     private FirebaseAuth mAuth;
     private DatabaseReference mDatabase;
 
 
-    public LoginViewModel() {
+    public ProfileViewModel() {
         mAuth = FirebaseAuth.getInstance();
         mDatabase = FirebaseDatabase.getInstance(Constants.FIREBASE_DB_URL).getReference();
     }

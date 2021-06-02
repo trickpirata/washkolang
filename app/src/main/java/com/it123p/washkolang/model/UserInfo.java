@@ -12,6 +12,7 @@ public class UserInfo {
     public String gender;
     public String phoneNumber;
     public String connectingId;
+    public String token;
     public boolean isOnline;
     public boolean isSuspended;
 

@@ -3,7 +3,9 @@ package com.it123p.washkolang.ui.login;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.auth.User;
 import com.it123p.washkolang.MainActivity;
+import com.it123p.washkolang.ui.createwash.ResultHandler;
 import com.it123p.washkolang.utils.*;
 import com.it123p.washkolang.model.UserInfo;
 
@@ -199,7 +201,8 @@ public class LoginFragment extends Fragment {
                     //we're new
                     addUser(object, "customer");
                 } else { //user is present
-                    addUser(object, (String) snapshot.child("type").getValue());
+
+                    proceedOldUser((String) snapshot.child("type").getValue());
                     if (progress.isShowing()) {
                         progress.dismiss();
                     }
@@ -233,8 +236,6 @@ public class LoginFragment extends Fragment {
             String image_url = "https://graph.facebook.com/" + user.facebookId  + "/picture?type=normal";
             user.profileUrl = image_url;
             user.type = currentType;
-            user.isSuspended = false;
-            user.isOnline = true;
             mDatabase.child("users").child(user.authId).setValue(user);
         } catch (JSONException e) {
             Log.e(TAG, e.getLocalizedMessage());
@@ -243,5 +244,34 @@ public class LoginFragment extends Fragment {
             progress.dismiss();
         }
         goToMain();
+
+    }
+
+    private void proceedOldUser(String currentType) {
+        FirebaseUser firebaseUser = mAuth.getCurrentUser();;
+        mViewModel.getUserInfo(firebaseUser.getUid(), new ResultHandler<UserInfo>() {
+            @Override
+            public void onSuccess(UserInfo data) {
+                data.type = currentType;
+                mDatabase.child("users").child(data.authId).setValue(data);
+
+                if (progress.isShowing()) {
+                    progress.dismiss();
+                }
+                goToMain();
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+
+            }
+
+            @Override
+            public UserInfo onSuccess() {
+                return null;
+            }
+        });
+
+
     }
 }
