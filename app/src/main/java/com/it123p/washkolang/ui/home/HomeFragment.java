@@ -10,6 +10,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -20,7 +21,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -33,6 +36,11 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.directions.route.AbstractRouting;
+import com.directions.route.Route;
+import com.directions.route.RouteException;
+import com.directions.route.Routing;
+import com.directions.route.RoutingListener;
 import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
@@ -41,6 +49,7 @@ import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
 import com.firebase.geofire.GeoLocation;
 import com.firebase.geofire.GeoQueryEventListener;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -53,14 +62,27 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.firestore.auth.User;
+import com.google.maps.DirectionsApi;
+import com.google.maps.DirectionsApiRequest;
+import com.google.maps.GeoApiContext;
+import com.google.maps.model.DirectionsLeg;
+import com.google.maps.model.DirectionsResult;
+import com.google.maps.model.DirectionsRoute;
+import com.google.maps.model.DirectionsStep;
+import com.google.maps.model.EncodedPolyline;
 import com.it123p.washkolang.MainActivity;
 import com.it123p.washkolang.OrderListener;
 import com.it123p.washkolang.R;
 import com.it123p.washkolang.model.MarkerInfo;
 import com.it123p.washkolang.model.OrderInfo;
+import com.it123p.washkolang.model.UserInfo;
 import com.it123p.washkolang.ui.createwash.ResultHandler;
 import com.it123p.washkolang.utils.Constants;
 import com.it123p.washkolang.LocationListener;
@@ -92,7 +114,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
     private boolean isMapReady = false;
     private OrderInfo currentOrder = null;
     private ArrayList<MarkerInfo> markerList = new ArrayList<>();
-
+    private boolean isOperator = false;
+    private ProgressDialog progressDialog;
+    protected GoogleApiClient mGoogleApiClient;
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -138,15 +162,17 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         super.onViewCreated(view, savedInstanceState);
         UserSingleton.getInstance().setCurrentOrderId(null, getContext());
         ConstraintLayout bottomLayout = (ConstraintLayout) view.findViewById(R.id.orderLayout);
-        String currentOrder = UserSingleton.getInstance().getCurrentOrderId(getContext());
-        if(currentOrder != null && !currentOrder.equals("")) {
-            loadOrder(currentOrder);
-        } else {
+//        String currentOrder = UserSingleton.getInstance().getCurrentOrderId(getContext());
+//        if(currentOrder != null && !currentOrder.equals("")) {
+//            loadOrder(currentOrder);
+//        } else {
             bottomLayout.setVisibility(View.INVISIBLE);
-        }
+//        }
+        UserSingleton.getInstance().setCurrentOrderId(null, getContext());
         Button btnCancel = (Button) getView().findViewById(R.id.btnCancel);
 
         btnCancel.setOnClickListener(this);
+
     }
 
     @Override
@@ -235,12 +261,34 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         double lat = location.getLatitude();
         double lon = location.getLongitude();
 
-        updateMarker(new LatLng(lat, lon));
         homeViewModel.saveUserLocation(location, getAddress(location));
         if (!runOnce) {
-            displayOperators();
+            homeViewModel.getUserInfo(FirebaseAuth.getInstance().getCurrentUser().getUid(), new ResultHandler<UserInfo>() {
+                @Override
+                public void onSuccess(UserInfo data) {
+                    if(data.type != null ) {
+                        if(data.type.equals("operator")) {
+                            isOperator = true;
+                        }
+                    }
+                    displayOperators();
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+
+                }
+
+                @Override
+                public UserInfo onSuccess() {
+                    return null;
+                }
+            });
         }
 
+        if(runOnce) {
+            updateMarker(new LatLng(lat, lon));
+        }
     }
 
     public void updateUserLocation(Location location) {
@@ -266,7 +314,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
             return;
         }
 
-        addUpdateMarker(FirebaseAuth.getInstance().getCurrentUser().getUid(), new GeoLocation(latLng.latitude, latLng.longitude));
+        addUpdateMarker(FirebaseAuth.getInstance().getCurrentUser().getUid(), new GeoLocation(latLng.latitude, latLng.longitude), false);
     }
 
     private String getAddress(Location location) {
@@ -301,27 +349,19 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         homeViewModel.getMapInfo(homeViewModel.lastKnownLocation, new GeoQueryEventListener() {
             @Override
             public void onKeyEntered(String key, GeoLocation location) {
-                addUpdateMarker(key, location);
+                addUpdateMarker(key, location, false);
             }
 
             @Override
             public void onKeyExited(String key) {
                 if(!FirebaseAuth.getInstance().getCurrentUser().getUid().equals(key)) {
-                    for(int k = 0; k < markerList.size(); k++){
-                        MarkerInfo marker = markerList.get(k);
-                        if(marker.userId.equals(key)) { //already added, remove
-                            marker.marker.remove();
-                            markerList.remove(marker);
-                            break;
-                        }
-                    }
-
+                    removeMarker(key);
                 }
             }
 
             @Override
             public void onKeyMoved(String key, GeoLocation location) {
-                addUpdateMarker(key, location);
+                addUpdateMarker(key, location, false);
             }
 
             @Override
@@ -336,7 +376,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         });
     }
 
-    private void addUpdateMarker(String key, GeoLocation location) {
+    private void addUpdateMarker(String key, GeoLocation location, boolean force) {
         boolean addMarker = true;
         for(int k = 0; k < markerList.size(); k++){
             MarkerInfo marker = markerList.get(k);
@@ -348,18 +388,38 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
             }
         }
         if(addMarker) {
+            boolean continueAdding = true;
             MarkerOptions marker = new MarkerOptions();
-            if(!FirebaseAuth.getInstance().getCurrentUser().getUid().equals(key)) {
+            if(!FirebaseAuth.getInstance().getCurrentUser().getUid().equals(key) && !isOperator) { //logged in user not an operator and scanned key is other user
                 marker.icon(BitmapDescriptorFactory.fromBitmap(
                         createCustomMarker(getContext(),R.drawable.carpool,"")));
+            } else if(FirebaseAuth.getInstance().getCurrentUser().getUid().equals(key) && isOperator) {
+                marker.icon(BitmapDescriptorFactory.fromBitmap(
+                        createCustomMarker(getContext(),R.drawable.carpool,"")));
+            } else if (!FirebaseAuth.getInstance().getCurrentUser().getUid().equals(key) && isOperator && !force) { //logged in user is an operator and scanned key is other user
+                continueAdding = false;
             }
 
-            marker.position(new LatLng(location.latitude, location.longitude));
-            MarkerInfo markerInfo = new MarkerInfo();
-            markerInfo.marker = mMap.addMarker(marker);
-            markerInfo.userId = key;
+            if (continueAdding) {
+                marker.position(new LatLng(location.latitude, location.longitude));
+                MarkerInfo markerInfo = new MarkerInfo();
+                markerInfo.marker = mMap.addMarker(marker);
+                markerInfo.userId = key;
 
-            markerList.add(markerInfo);
+                markerList.add(markerInfo);
+            }
+
+        }
+    }
+
+    private void removeMarker(String key) {
+        for(int k = 0; k < markerList.size(); k++){
+            MarkerInfo marker = markerList.get(k);
+            if(marker.userId.equals(key)) { //already added, remove
+                marker.marker.remove();
+                markerList.remove(marker);
+                break;
+            }
         }
     }
 
@@ -403,7 +463,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                 order.operator = FirebaseAuth.getInstance().getCurrentUser().getUid();
                 order.status = "accepted";
                 UserSingleton.getInstance().setCurrentOrderId(order.orderId, getContext());
-                loadOrderDetails(order);
+                loadOrderDetails(order, false);
 
             } });
 
@@ -418,11 +478,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         alertDialog.show();
     }
 
-    private void loadOrder(String orderId) {
+
+    private void loadOrder(String orderId) { //load accepted order
         homeViewModel.getOrderInfo(orderId, new ResultHandler<OrderInfo>() {
             @Override
             public void onSuccess(OrderInfo data) {
-                loadOrderDetails(data);
+                loadOrderDetails(data, true);
             }
 
             @Override
@@ -437,19 +498,58 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         });
     }
 
-    private void loadOrderDetails(OrderInfo order) {
-
+    private void loadOrderDetails(OrderInfo order, boolean isUpdating) {
         Button btnCancel = (Button) getView().findViewById(R.id.btnCancel);
         TextView txtOrderStatus = (TextView) getView().findViewById(R.id.txtOrderStatus);
         TextView txtCar = (TextView) getView().findViewById(R.id.txtCar);
         TextView txtCarSize = (TextView) getView().findViewById(R.id.txtCarSize);
         TextView txtPrice = (TextView) getView().findViewById(R.id.txtPrice);
 
+        //add destination pin if operator
         boolean isOperator = true;
         if(order.author.equals(FirebaseAuth.getInstance().getCurrentUser().getUid())) {
             btnCancel.setText("Cancel");
             isOperator = false;
+        } else {
+            if (!isUpdating) {
+                progressDialog = ProgressDialog.show(getContext(), "Please wait.",
+                        "Fetching route information.", true);
+
+                LatLng start = new LatLng(homeViewModel.lastKnownLocation.getLatitude(), homeViewModel.lastKnownLocation.getLongitude());
+                LatLng end = new LatLng(order.latitude, order.longitude);
+                requestDirections(start, end);
+//                routing = new Routing.Builder()
+//                        .travelMode(AbstractRouting.TravelMode.DRIVING)
+//                        .withListener(this)
+//                        .alternativeRoutes(true)
+//                        .waypoints(start, end)
+//                        .build();
+//                routing.execute();
+
+                // Start marker
+                MarkerOptions options = new MarkerOptions();
+//                options.position(start);
+//                options.icon(BitmapDescriptorFactory.fromResource(R.drawable.start_blue));
+//                mMap.addMarker(options);
+//
+//                // End marker
+//                options = new MarkerOptions();
+                options.position(end);
+//                options.icon(BitmapDescriptorFactory.fromResource(R.drawable.end_green));
+                MarkerInfo info = new MarkerInfo();
+                info.userId = order.orderId;
+                info.marker = mMap.addMarker(options);
+
+                markerList.add(info);
+
+                CameraUpdate center = CameraUpdateFactory.newLatLng(start);
+                CameraUpdate zoom = CameraUpdateFactory.zoomTo(16);
+
+                mMap.moveCamera(center);
+            }
+//            addUpdateMarker(order.orderId, new GeoLocation(order.latitude, order.longitude), true);
         }
+
         txtOrderStatus.setText("Order Status: " + order.status);
         txtCar.setText("Make: " + order.carMake);
         txtCarSize.setText("Size: " +order.carSize);
@@ -465,6 +565,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                 btnCancel.setText("Finished");
             } else if(order.status.equals("finished")) {
                 bottomLayout.setVisibility(View.INVISIBLE);
+                UserSingleton.getInstance().setCurrentOrderId(null, getContext());
+                currentOrder = null;
             }
         } else {
             if (order.status.equals("created")) {
@@ -482,6 +584,67 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         }
     }
 
+    List<Polyline> polylines = new ArrayList<Polyline>();
+    private void requestDirections(LatLng start, LatLng end) {
+
+        GeoApiContext context = new GeoApiContext.Builder()
+                .apiKey("AIzaSyB0anEb0AXLH9U4BT20UBcHVbpmXndegec")
+                .build();
+        List<LatLng> path = new ArrayList();
+        DirectionsApiRequest req = DirectionsApi.getDirections(context, Double.toString(start.latitude) + "," + Double.toString(start.longitude) , Double.toString(end.latitude) + "," + Double.toString(end.longitude));
+        try {
+            DirectionsResult res = req.await();
+            progressDialog.dismiss();
+            //Loop through legs and steps to get encoded polylines of each step
+            if (res.routes != null && res.routes.length > 0) {
+                DirectionsRoute route = res.routes[0];
+
+                if (route.legs !=null) {
+                    for(int i=0; i<route.legs.length; i++) {
+                        DirectionsLeg leg = route.legs[i];
+                        if (leg.steps != null) {
+                            for (int j=0; j<leg.steps.length;j++){
+                                DirectionsStep step = leg.steps[j];
+                                if (step.steps != null && step.steps.length >0) {
+                                    for (int k=0; k<step.steps.length;k++){
+                                        DirectionsStep step1 = step.steps[k];
+                                        EncodedPolyline points1 = step1.polyline;
+                                        if (points1 != null) {
+                                            //Decode polyline and add points to list of route coordinates
+                                            List<com.google.maps.model.LatLng> coords1 = points1.decodePath();
+                                            for (com.google.maps.model.LatLng coord1 : coords1) {
+                                                path.add(new LatLng(coord1.lat, coord1.lng));
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    EncodedPolyline points = step.polyline;
+                                    if (points != null) {
+                                        //Decode polyline and add points to list of route coordinates
+                                        List<com.google.maps.model.LatLng> coords = points.decodePath();
+                                        for (com.google.maps.model.LatLng coord : coords) {
+                                            path.add(new LatLng(coord.lat, coord.lng));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                //Draw the polyline
+                if (path.size() > 0) {
+                    PolylineOptions opts = new PolylineOptions().addAll(path).color(Color.BLUE).width(5);
+                    polylines.add(mMap.addPolyline(opts));
+                    progressDialog.dismiss();
+                }
+            }
+        } catch(Exception ex) {
+            progressDialog.dismiss();
+            Log.e("ERROR", ex.getLocalizedMessage());
+        }
+
+
+    }
     private void updateOrderInfo() {
 
         //We're the operator of this current order
@@ -490,7 +653,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                 homeViewModel.updateOrderStatus(currentOrder.orderId, "arrived", new ResultHandler<Void>() {
                     @Override
                     public void onSuccess(Void data) {
-
                     }
 
                     @Override
@@ -500,6 +662,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
                     @Override
                     public Void onSuccess() {
+
                          loadOrder(currentOrder.orderId);
                         return null;
                     }
@@ -518,12 +681,18 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
                     @Override
                     public Void onSuccess() {
+                        for(Polyline line : polylines)
+                        {
+                            line.remove();
+                        }
+
+                        polylines.clear();
+                        removeMarker(currentOrder.orderId);
                         loadOrder(currentOrder.orderId);
+
                         return null;
                     }
                 });
-                UserSingleton.getInstance().setCurrentOrderId(null, getContext());
-                currentOrder = null;
             }
         } else { //we're the user
             homeViewModel.updateOrderStatus(currentOrder.orderId, "cancel", new ResultHandler<Void>() {
@@ -539,7 +708,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
                 @Override
                 public Void onSuccess() {
-                    loadOrder(currentOrder.orderId);
+//                    loadOrder(currentOrder.orderId);
                     return null;
                 }
             });
@@ -552,4 +721,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
     public void didCreateOrder(OrderInfo order) {
         loadOrder(order.orderId);
     }
+
+
 }

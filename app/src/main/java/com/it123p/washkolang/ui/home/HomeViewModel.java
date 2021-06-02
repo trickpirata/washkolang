@@ -87,11 +87,25 @@ public class HomeViewModel extends ViewModel {
 
     }
 
-    public void getOrderInfo(String orderId, ResultHandler<OrderInfo> handler) {
-        mDatabase.child("orders").child(orderId).addValueEventListener(new ValueEventListener() {
+    public void getUserInfo(String userId, ResultHandler<UserInfo> handler) {
+        mDatabase.child("users").child(userId).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String token = (String) snapshot.child("token").getValue();
+                UserInfo info = snapshot.getValue(UserInfo.class);
+                handler.onSuccess(info);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+    }
+
+    public void getOrderInfo(String orderId, ResultHandler<OrderInfo> handler) {
+        mDatabase.child("orders").child(orderId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
 
                 if (snapshot.exists()){
                     OrderInfo order = snapshot.getValue(OrderInfo.class);
@@ -106,64 +120,18 @@ public class HomeViewModel extends ViewModel {
 
             }
         });
-
-        mDatabase.child("orders").child(orderId).addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-                if (snapshot.exists()){
-//                    handler.onSuccess();
-//                    OrderInfo order = snapshot.getValue(OrderInfo.class);
-//                    order.orderId = snapshot.getKey();
-//                    handler.onSuccess(snapshot.getKey());
-                }
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                handler.onSuccess();
-//                if (snapshot.exists()){
-//                    OrderInfo order = snapshot.getValue(OrderInfo.class);
-//                    order.orderId = snapshot.getKey();
-//                    handler.onSuccess(order);
-//                }
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-
-            }
-        });
-//        mDatabase.child("orders").child(orderId).addListenerForSingleValueEvent(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(@NonNull DataSnapshot snapshot) {
-//                String token = (String) snapshot.child("token").getValue();
-//
-//                if (snapshot.exists()){
-//                    OrderInfo order = snapshot.getValue(OrderInfo.class);
-//                    order.orderId = snapshot.getKey();
-//                    handler.onSuccess(order);
-//                }
-//
-//            }
-//
-//            @Override
-//            public void onCancelled(@NonNull DatabaseError error) {
-//
-//            }
-//        });
     }
 
+//    public void monitorOrder(String orderId, ResultHandler<OrderInfo> handler) {
+//
+//        mDatabase.child("orders").child(orderId).addChildEventListener(listener);
+//
+//        return listener;
+//    }
+
+    public void removeOrderChildListener(String orderId, ChildEventListener listener) {
+        mDatabase.child("orders").child(orderId).removeEventListener(listener);
+    }
     public void getMapInfo(Location currentLocation, GeoQueryEventListener handler) {
         GeoLocation geoLocation = new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude());
         if(geoQuery == null) {

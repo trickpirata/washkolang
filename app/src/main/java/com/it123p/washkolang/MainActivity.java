@@ -172,8 +172,11 @@ public class MainActivity extends AppCompatActivity {
                     UserInfo userInfo = new UserInfo();
                     userInfo.firstName = (String) snapshot.child("firstName").getValue();
                     userInfo.lastName = (String) snapshot.child("lastName").getValue();
-                    userInfo.type = (String) snapshot.child("type").getValue();
 
+                    if(snapshot.child("type").exists()) {
+                        String type = (String) snapshot.child("type").getValue();
+                        userInfo.type = type;
+                    }
                     UserSingleton.getInstance().setCurrentUser(snapshot.getValue(UserInfo.class));
 
                     progress.dismiss();
@@ -207,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
                         if (location == null) {
                             requestNewLocationData();
                         } else {
-                            Log.d(TAG, "Got Location Lat: " + location.getLatitude() + ", Long: " + location.getLongitude());
+
                             updateLocation(location);
 //                            fragment.updateUserLocation(location);
                         }
@@ -333,7 +336,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onLocationResult(LocationResult locationResult) {
             Location mLastLocation = locationResult.getLastLocation();
-            Log.d(TAG, "Got Location Lat: " + mLastLocation.getLatitude() + ", Long: " + mLastLocation.getLongitude());
+
             updateLocation(mLastLocation);
 //            fragment.updateUserLocation(mLastLocation);
         }
