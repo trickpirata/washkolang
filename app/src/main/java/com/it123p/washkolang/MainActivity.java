@@ -113,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
         NavigationUI.setupWithNavController(navigationView, navController);
         setup();
         checkIfLoggedIn();
+        UserSingleton.getInstance().setCurrentOrderId(null, MainActivity.this);
     }
 
     @Override

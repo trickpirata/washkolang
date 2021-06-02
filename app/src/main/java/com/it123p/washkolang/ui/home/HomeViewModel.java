@@ -122,12 +122,22 @@ public class HomeViewModel extends ViewModel {
         });
     }
 
-//    public void monitorOrder(String orderId, ResultHandler<OrderInfo> handler) {
-//
-//        mDatabase.child("orders").child(orderId).addChildEventListener(listener);
-//
-//        return listener;
-//    }
+    public void monitorOrder(String orderId, ResultHandler<OrderInfo> handler) {
+        mDatabase.child("orders").child(orderId).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                OrderInfo order = snapshot.getValue(OrderInfo.class);
+                order.orderId = snapshot.getKey();
+                handler.onSuccess(order);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+
+    }
 
     public void removeOrderChildListener(String orderId, ChildEventListener listener) {
         mDatabase.child("orders").child(orderId).removeEventListener(listener);

@@ -162,13 +162,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         super.onViewCreated(view, savedInstanceState);
         UserSingleton.getInstance().setCurrentOrderId(null, getContext());
         ConstraintLayout bottomLayout = (ConstraintLayout) view.findViewById(R.id.orderLayout);
-//        String currentOrder = UserSingleton.getInstance().getCurrentOrderId(getContext());
-//        if(currentOrder != null && !currentOrder.equals("")) {
-//            loadOrder(currentOrder);
-//        } else {
+        String currentOrder = UserSingleton.getInstance().getCurrentOrderId(getContext());
+        if(currentOrder != null && !currentOrder.equals("")) {
+            loadOrder(currentOrder);
+        } else {
             bottomLayout.setVisibility(View.INVISIBLE);
-//        }
-        UserSingleton.getInstance().setCurrentOrderId(null, getContext());
+        }
+//        UserSingleton.getInstance().setCurrentOrderId(null, getContext());
         Button btnCancel = (Button) getView().findViewById(R.id.btnCancel);
 
         btnCancel.setOnClickListener(this);
@@ -181,7 +181,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         listener = this;
         orderListener = this;
         String currentOrder = UserSingleton.getInstance().getCurrentOrderId(getContext());
-        if(currentOrder != null && !currentOrder.equals("")) {
+        if(currentOrder != null && !currentOrder.equals("") && !isOperator) {
             loadOrder(currentOrder);
         }
     }
@@ -463,7 +463,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                 order.operator = FirebaseAuth.getInstance().getCurrentUser().getUid();
                 order.status = "accepted";
                 UserSingleton.getInstance().setCurrentOrderId(order.orderId, getContext());
-                loadOrderDetails(order, false);
+                loadOrder(order.orderId);
 
             } });
 
@@ -480,10 +480,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
 
     private void loadOrder(String orderId) { //load accepted order
-        homeViewModel.getOrderInfo(orderId, new ResultHandler<OrderInfo>() {
+        homeViewModel.monitorOrder(orderId, new ResultHandler<OrderInfo>() {
             @Override
             public void onSuccess(OrderInfo data) {
-                loadOrderDetails(data, true);
+                loadOrderDetails(data);
             }
 
             @Override
@@ -498,7 +498,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         });
     }
 
-    private void loadOrderDetails(OrderInfo order, boolean isUpdating) {
+    private void loadOrderDetails(OrderInfo order) {
+
         Button btnCancel = (Button) getView().findViewById(R.id.btnCancel);
         TextView txtOrderStatus = (TextView) getView().findViewById(R.id.txtOrderStatus);
         TextView txtCar = (TextView) getView().findViewById(R.id.txtCar);
@@ -511,51 +512,37 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
             btnCancel.setText("Cancel");
             isOperator = false;
         } else {
-            if (!isUpdating) {
+            if (currentOrder == null) {
                 progressDialog = ProgressDialog.show(getContext(), "Please wait.",
                         "Fetching route information.", true);
 
                 LatLng start = new LatLng(homeViewModel.lastKnownLocation.getLatitude(), homeViewModel.lastKnownLocation.getLongitude());
                 LatLng end = new LatLng(order.latitude, order.longitude);
                 requestDirections(start, end);
-//                routing = new Routing.Builder()
-//                        .travelMode(AbstractRouting.TravelMode.DRIVING)
-//                        .withListener(this)
-//                        .alternativeRoutes(true)
-//                        .waypoints(start, end)
-//                        .build();
-//                routing.execute();
 
                 // Start marker
                 MarkerOptions options = new MarkerOptions();
-//                options.position(start);
-//                options.icon(BitmapDescriptorFactory.fromResource(R.drawable.start_blue));
-//                mMap.addMarker(options);
-//
-//                // End marker
-//                options = new MarkerOptions();
                 options.position(end);
-//                options.icon(BitmapDescriptorFactory.fromResource(R.drawable.end_green));
+
                 MarkerInfo info = new MarkerInfo();
                 info.userId = order.orderId;
                 info.marker = mMap.addMarker(options);
 
                 markerList.add(info);
 
-                CameraUpdate center = CameraUpdateFactory.newLatLng(start);
-                CameraUpdate zoom = CameraUpdateFactory.zoomTo(16);
-
-                mMap.moveCamera(center);
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(start, 16));
             }
 //            addUpdateMarker(order.orderId, new GeoLocation(order.latitude, order.longitude), true);
         }
+
+        currentOrder = order;
+
 
         txtOrderStatus.setText("Order Status: " + order.status);
         txtCar.setText("Make: " + order.carMake);
         txtCarSize.setText("Size: " +order.carSize);
         txtPrice.setText("Price: " +"250");
         ConstraintLayout bottomLayout = (ConstraintLayout) getView().findViewById(R.id.orderLayout);
-        currentOrder = order;
         if(isOperator) {
             if(order.status.equals("accepted")) {
                 bottomLayout.setVisibility(View.VISIBLE);
@@ -663,11 +650,18 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                     @Override
                     public Void onSuccess() {
 
-                         loadOrder(currentOrder.orderId);
+//                         loadOrder(currentOrder.orderId);
                         return null;
                     }
                 });
             } else if(currentOrder.status.equals("arrived")) {
+                for(Polyline line : polylines)
+                {
+                    line.remove();
+                }
+
+                polylines.clear();
+                removeMarker(currentOrder.orderId);
                 homeViewModel.updateOrderStatus(currentOrder.orderId, "finished", new ResultHandler<Void>() {
                     @Override
                     public void onSuccess(Void data) {
@@ -681,14 +675,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
                     @Override
                     public Void onSuccess() {
-                        for(Polyline line : polylines)
-                        {
-                            line.remove();
-                        }
 
-                        polylines.clear();
-                        removeMarker(currentOrder.orderId);
-                        loadOrder(currentOrder.orderId);
+//                        loadOrder(currentOrder.orderId);
 
                         return null;
                     }
