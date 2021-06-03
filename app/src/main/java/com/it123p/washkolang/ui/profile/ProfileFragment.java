@@ -130,7 +130,7 @@ public class ProfileFragment extends Fragment implements AdapterView.OnItemSelec
                 } catch (ParseException e) {
                     e.printStackTrace();
                 }
-                userInfo.phoneNumber = txtNumber.getText().toString();
+                userInfo.phonenumber = txtNumber.getText().toString();
                 userInfo.gender = selectedGender;
                 updateUser(userInfo);
             }
@@ -149,7 +149,7 @@ public class ProfileFragment extends Fragment implements AdapterView.OnItemSelec
                     txtBirthday.setText(format.format(new Date(data.birthdate)));
                 }
 
-                txtNumber.setText(data.phoneNumber);
+                txtNumber.setText(data.phonenumber);
                 int spinnerPosition = adapter.getPosition(data.gender);
                 if(spinnerPosition == -1 ) {
                     spinnerPosition = mViewModel.genders.length - 1;

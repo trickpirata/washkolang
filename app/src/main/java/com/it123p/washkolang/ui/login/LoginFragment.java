@@ -11,7 +11,9 @@ import com.it123p.washkolang.model.UserInfo;
 
 import androidx.lifecycle.ViewModelProvider;
 
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 
@@ -224,11 +226,11 @@ public class LoginFragment extends Fragment {
                     if(userInfo.email != null) {
                         if(userInfo.email.equalsIgnoreCase(firebaseUser.getEmail())){
                             isExisting = true;
-                            proceedOldUser((String) snapshot.child("type").getValue(), val.getKey());
+                            proceedOldUser(userInfo.type, val.getKey());
                             if (progress.isShowing()) {
                                 progress.dismiss();
                             }
-                            goToMain();
+
                             break;
                         }
                     }
@@ -262,7 +264,7 @@ public class LoginFragment extends Fragment {
             user.lastName = object.getString("last_name");
             user.birthdate = 0;
             String image_url = "https://graph.facebook.com/" + user.facebookId  + "/picture?type=normal";
-            user.profileUrl = image_url;
+            user.photoURL = image_url;
             user.type = currentType;
             mDatabase.child("users").child(user.authId).setValue(user);
         } catch (JSONException e) {
@@ -281,19 +283,39 @@ public class LoginFragment extends Fragment {
         mViewModel.getUserInfo(id, new ResultHandler<UserInfo>() {
             @Override
             public void onSuccess(UserInfo data) {
-                data.type = currentType;
+                if(data.status.equals("Suspended")) {
+                    AlertDialog alertDialog = new AlertDialog.Builder(getContext()).create();
 
-                if(data.authId == null) {
-                    mDatabase.child("users").child(id).removeValue();
+                    alertDialog.setTitle("Error");
+
+                    alertDialog.setMessage("Your account is suspended. Please contact system admin.");
+
+                    alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            LoginManager.getInstance().logOut();
+                            FirebaseAuth.getInstance().signOut();
+                        }
+                    });
+
+                    alertDialog.show();
+
+                } else {
+                    data.type = currentType;
+
+                    if(data.authId == null) {
+                        mDatabase.child("users").child(id).removeValue();
+                    }
+
+                    data.authId = firebaseUser.getUid();
+                    mDatabase.child("users").child(mAuth.getUid()).setValue(data);
+
+                    if (progress.isShowing()) {
+                        progress.dismiss();
+                    }
+                    goToMain();
                 }
 
-                data.authId = firebaseUser.getUid();
-                mDatabase.child("users").child(mAuth.getUid()).setValue(data);
-
-                if (progress.isShowing()) {
-                    progress.dismiss();
-                }
-                goToMain();
             }
 
             @Override
