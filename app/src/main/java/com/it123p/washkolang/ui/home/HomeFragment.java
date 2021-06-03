@@ -117,6 +117,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
     private boolean isOperator = false;
     private ProgressDialog progressDialog;
     private boolean didClickCustomLocation = false;
+    private boolean didUserCancel = false;
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -261,6 +262,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.btnCancel:
+                didUserCancel = true;
                 updateOrderInfo();
                 break;
         }
@@ -484,7 +486,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
             public void onClick(DialogInterface dialog, int id) {
 
-                //...
+                homeViewModel.updateOrderStatus(order.orderId, "cancel", new ResultHandler<Void>() {
+                    @Override
+                    public void onSuccess(Void data) {
+
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+
+                    }
+
+                    @Override
+                    public Void onSuccess() {
+                        return null;
+                    }
+                });
 
             }});
 
@@ -519,7 +536,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         TextView txtCarSize = (TextView) getView().findViewById(R.id.txtCarSize);
         TextView txtPrice = (TextView) getView().findViewById(R.id.txtPrice);
 
-        //add destination pin if operator
         boolean isOperator = true;
         if(order.author.equals(FirebaseAuth.getInstance().getCurrentUser().getUid())) {
             btnCancel.setText("Cancel");
@@ -531,7 +547,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                 showPrompts("An operator arrived at the pinned location");
             } else if(order.status.equals("finished")) {
                 showPrompts("An operator finished washing your car! Thanks!");
-            } else if(order.status.equals("cancel") && txtOrderStatus.getText().equals("created")) {
+            } else if(order.status.equals("cancel") && !didUserCancel) {
                 showPrompts("An operator canceled your request :(");
             }
         } else {
@@ -590,7 +606,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                 currentOrder = null;
             } else if (order.status.equals("cancel")) {
                 bottomLayout.setVisibility(View.INVISIBLE);
-
+                didUserCancel = false;
 
             }
         }

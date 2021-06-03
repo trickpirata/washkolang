@@ -138,12 +138,12 @@ public class HomeViewModel extends ViewModel {
 
             }
         });
-
     }
 
     public void removeOrderChildListener(String orderId, ChildEventListener listener) {
         mDatabase.child("orders").child(orderId).removeEventListener(listener);
     }
+
     public void getMapInfo(Location currentLocation, GeoQueryEventListener handler) {
         GeoLocation geoLocation = new GeoLocation(currentLocation.getLatitude(), currentLocation.getLongitude());
         if(geoQuery == null) {
@@ -152,6 +152,10 @@ public class HomeViewModel extends ViewModel {
             geoQuery = geoFire.queryAtLocation(geoLocation, 10); //10kilometers
             geoQuery.addGeoQueryEventListener(handler);
         }
+    }
+
+    public void declineOrder(String orderId) {
+        mDatabase.child("orders").child(orderId).child("status").setValue("cancel"); //set to cancel
     }
 
     public void acceptOrder(String orderId) {
