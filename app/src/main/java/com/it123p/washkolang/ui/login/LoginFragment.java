@@ -194,34 +194,11 @@ public class LoginFragment extends Fragment {
 
     private void saveToDB(JSONObject object) {
         FirebaseUser firebaseUser = mAuth.getCurrentUser();
-//        DatabaseReference databaseUser = mDatabase.child("users").child(mAuth.getUid());
-//
-//        databaseUser.addListenerForSingleValueEvent(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(@NonNull DataSnapshot snapshot) {
-//                if (snapshot.getValue() == null) {
-//                    //we're new
-//                    addUser(object, "customer");
-//                } else { //user is present
-//
-//                    proceedOldUser((String) snapshot.child("type").getValue());
-//                    if (progress.isShowing()) {
-//                        progress.dismiss();
-//                    }
-//                    goToMain();
-//                }
-//            }
-//
-//            @Override
-//            public void onCancelled(@NonNull DatabaseError error) {
-//
-//            }
-//        });
         mDatabase.child("users").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 boolean isExisting = false;
-                for(DataSnapshot val : snapshot.getChildren()){
+                for(DataSnapshot val : snapshot.getChildren()) {
                     UserInfo userInfo = val.getValue(UserInfo.class);
                     if(userInfo.email != null) {
                         if(userInfo.email.equalsIgnoreCase(firebaseUser.getEmail())){

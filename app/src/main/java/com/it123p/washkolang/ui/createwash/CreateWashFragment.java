@@ -81,6 +81,11 @@ public class CreateWashFragment extends Fragment implements AdapterView.OnItemSe
             }
         });
 
+        EditText txtAddress = (EditText) getView().findViewById(R.id.txtAddress);
+        String address = getActivity().getIntent().getExtras().getString("address");
+        if(address != null) {
+            txtAddress.setText(address);
+        }
     }
 
     @Override
@@ -103,6 +108,7 @@ public class CreateWashFragment extends Fragment implements AdapterView.OnItemSe
         EditText txtCarMake = (EditText) getView().findViewById(R.id.txtCarMake);
         EditText txtCarModel = (EditText) getView().findViewById(R.id.txtCarModel);
         EditText txtCarColor = (EditText) getView().findViewById(R.id.txtCarColor);
+        EditText txtAddress = (EditText) getView().findViewById(R.id.txtAddress);
 
         OrderInfo order = new OrderInfo();
         order.plateNumber = txtPlate.getText().toString();

@@ -12,6 +12,12 @@
         tools:layout="@layout/fragment_home" />
 
     <fragment
+        android:id="@+id/nav_orders"
+        android:name="com.it123p.washkolang.ui.orders.OrdersFragment"
+        android:label="Orders"
+        tools:layout="@layout/orders_fragment" />
+
+    <fragment
         android:id="@+id/nav_profile"
         android:name="com.it123p.washkolang.ui.profile.ProfileFragment"
         android:label="@string/menu_profile"

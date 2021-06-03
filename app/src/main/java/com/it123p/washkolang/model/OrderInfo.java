@@ -19,5 +19,42 @@ public class OrderInfo {
 
     }
 
+    @Override
+    public String toString() {
+//        return "OrderInfo{" +
+//                "plateNumber='" + plateNumber + '\'' +
+//                ", carMake='" + carMake + '\'' +
+//                ", carModel='" + carModel + '\'' +
+//                ", carColor='" + carColor + '\'' +
+//                ", carSize='" + carSize + '\'' +
+//                ", author='" + author + '\'' +
+//                ", operator='" + operator + '\'' +
+//                ", latitude=" + latitude +
+//                ", longitude=" + longitude +
+//                ", address='" + address + '\'' +
+//                ", status='" + status + '\'' +
+//                ", orderId='" + orderId + '\'' +
+//                ", price='" + price + '\'' +
+//                ", date=" + date +
+//                '}';
+        return "Order for " + carMake;
+    }
 
+    public String information() {
+        return  "Plate Number: " + plateNumber + '\n' +
+                "Car Make: " + carMake + '\n' +
+                "Model: " + carModel + '\n' +
+                "Color: " + carColor + '\n' +
+                "Size: " + carSize + '\n' +
+                "Address: " + address + '\n' +
+                "Status: " + status + '\n' +
+                "Price: " + price + '\n';
+//                ", latitude=" + latitude +
+//                ", longitude=" + longitude +
+//                ", address='" + address + '\'' +
+//                ", status='" + status + '\'' +
+//                ", orderId='" + orderId + '\'' +
+//                ", price='" + price + '\'' +
+//                ", date=" + date +;
+    }
 }
