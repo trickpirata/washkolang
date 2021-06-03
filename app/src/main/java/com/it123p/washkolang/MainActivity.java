@@ -137,7 +137,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void hideFabButton(boolean hide) {
         if(hide) {
-
+            btnCreateOrder.setVisibility(View.INVISIBLE);
+        } else {
+            btnCreateOrder.setVisibility(View.VISIBLE);
         }
     }
     private void setup() {

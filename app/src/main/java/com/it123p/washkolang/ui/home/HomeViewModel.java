@@ -165,17 +165,13 @@ public class HomeViewModel extends ViewModel {
                 if(snapshot.exists()) {
                     OrderInfo info = snapshot.getValue(OrderInfo.class);
                     if(info.status.equals("accepted")) {
-                        if(handler != null) {
-                            handler.onFailure(null);
-                        }
+                        handler.onFailure(null);
 
                     } else {
-                        if(handler != null) {
-                            mDatabase.child("orders").child(orderId).child("operator").setValue(FirebaseAuth.getInstance().getCurrentUser().getUid()); //set order operator
-                            mDatabase.child("orders").child(orderId).child("status").setValue("accepted"); //set to accept
-                            mDatabase.child("users").child(FirebaseAuth.getInstance().getCurrentUser().getUid()).child("orders").push().setValue(orderId); //add to orderhistory
-                            handler.onSuccess();
-                        }
+                        mDatabase.child("orders").child(orderId).child("operator").setValue(FirebaseAuth.getInstance().getCurrentUser().getUid()); //set order operator
+                        mDatabase.child("orders").child(orderId).child("status").setValue("accepted"); //set to accept
+                        mDatabase.child("users").child(FirebaseAuth.getInstance().getCurrentUser().getUid()).child("orders").push().setValue(orderId); //add to orderhistory
+                        handler.onSuccess();
 
                     }
                 }

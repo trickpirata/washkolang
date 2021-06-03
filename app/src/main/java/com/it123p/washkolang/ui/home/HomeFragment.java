@@ -183,6 +183,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         orderListener = this;
         String currentOrder = UserSingleton.getInstance().getCurrentOrderId(getContext());
         if(currentOrder != null && !currentOrder.equals("") && !isOperator) {
+            ((MainActivity)getActivity()).hideFabButton(true);
             loadOrder(currentOrder);
         }
     }
@@ -477,10 +478,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                 homeViewModel.acceptOrder(order.orderId, new ResultHandler<Void>() {
                     @Override
                     public void onSuccess(Void data) {
-                        order.operator = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                        order.status = "accepted";
-                        UserSingleton.getInstance().setCurrentOrderId(order.orderId, getContext());
-                        loadOrder(order.orderId);
+
                     }
 
                     @Override
@@ -490,6 +488,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
                     @Override
                     public Void onSuccess() {
+                        order.operator = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                        order.status = "accepted";
+                        UserSingleton.getInstance().setCurrentOrderId(order.orderId, getContext());
+                        loadOrder(order.orderId);
                         return null;
                     }
                 });
@@ -562,8 +564,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
                 showPrompts("An operator arrived at the pinned location");
             } else if(order.status.equals("finished")) {
                 showPrompts("An operator finished washing your car! Thanks!");
+                ((MainActivity)getActivity()).hideFabButton(false);
             } else if(order.status.equals("cancel") && !didUserCancel) {
                 showPrompts("An operator canceled your request :(");
+                ((MainActivity)getActivity()).hideFabButton(false);
             }
         } else {
             if (currentOrder == null) {
@@ -622,7 +626,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
             } else if (order.status.equals("cancel")) {
                 bottomLayout.setVisibility(View.INVISIBLE);
                 didUserCancel = false;
-
+                ((MainActivity)getActivity()).hideFabButton(false);
             }
         }
     }
