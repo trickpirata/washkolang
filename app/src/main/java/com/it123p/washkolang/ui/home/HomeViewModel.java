@@ -158,10 +158,35 @@ public class HomeViewModel extends ViewModel {
         mDatabase.child("orders").child(orderId).child("status").setValue("cancel"); //set to cancel
     }
 
-    public void acceptOrder(String orderId) {
-        mDatabase.child("orders").child(orderId).child("operator").setValue(FirebaseAuth.getInstance().getCurrentUser().getUid()); //set order operator
-        mDatabase.child("orders").child(orderId).child("status").setValue("accepted"); //set to accept
-        mDatabase.child("users").child(FirebaseAuth.getInstance().getCurrentUser().getUid()).child("orders").push().setValue(orderId); //add to orderhistory
+    public void acceptOrder(String orderId, ResultHandler<Void> handler) {
+        mDatabase.child("orders").child(orderId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if(snapshot.exists()) {
+                    OrderInfo info = snapshot.getValue(OrderInfo.class);
+                    if(info.status.equals("accepted")) {
+                        if(handler != null) {
+                            handler.onFailure(null);
+                        }
+
+                    } else {
+                        if(handler != null) {
+                            mDatabase.child("orders").child(orderId).child("operator").setValue(FirebaseAuth.getInstance().getCurrentUser().getUid()); //set order operator
+                            mDatabase.child("orders").child(orderId).child("status").setValue("accepted"); //set to accept
+                            mDatabase.child("users").child(FirebaseAuth.getInstance().getCurrentUser().getUid()).child("orders").push().setValue(orderId); //add to orderhistory
+                            handler.onSuccess();
+                        }
+
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+
     }
 
     public void updateOrderStatus(String orderId, String status, ResultHandler<Void> handler) {

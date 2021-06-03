@@ -116,9 +116,12 @@ public class CreateWashViewModel extends ViewModel {
                 String token = (String) snapshot.child("token").getValue();
 
                 //PUSH
-                if (((String) snapshot.child("type").getValue()).equals("operator")) {
-                    sendPushNotification("Someone is asking for a quick wash!", "Order", token, orderId);
+                if(snapshot.child("type").exists()) {
+                    if (((String) snapshot.child("type").getValue()).equals("operator")) {
+                        sendPushNotification("Someone is asking for a quick wash!", "Order", token, orderId);
+                    }
                 }
+
 
             }
 

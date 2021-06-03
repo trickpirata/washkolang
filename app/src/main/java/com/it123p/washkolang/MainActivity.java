@@ -135,6 +135,11 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
     }
 
+    public void hideFabButton(boolean hide) {
+        if(hide) {
+
+        }
+    }
     private void setup() {
         mAuth = FirebaseAuth.getInstance();
         //Setup map

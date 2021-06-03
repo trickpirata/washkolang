@@ -474,11 +474,26 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
 
             public void onClick(DialogInterface dialog, int id) {
 
-                homeViewModel.acceptOrder(order.orderId);
-                order.operator = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                order.status = "accepted";
-                UserSingleton.getInstance().setCurrentOrderId(order.orderId, getContext());
-                loadOrder(order.orderId);
+                homeViewModel.acceptOrder(order.orderId, new ResultHandler<Void>() {
+                    @Override
+                    public void onSuccess(Void data) {
+                        order.operator = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                        order.status = "accepted";
+                        UserSingleton.getInstance().setCurrentOrderId(order.orderId, getContext());
+                        loadOrder(order.orderId);
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        showPrompts("Another operator is already assigned to this order.");
+                    }
+
+                    @Override
+                    public Void onSuccess() {
+                        return null;
+                    }
+                });
+
 
             } });
 

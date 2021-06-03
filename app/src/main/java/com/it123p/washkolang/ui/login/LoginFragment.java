@@ -260,7 +260,7 @@ public class LoginFragment extends Fragment {
         mViewModel.getUserInfo(id, new ResultHandler<UserInfo>() {
             @Override
             public void onSuccess(UserInfo data) {
-                if(data.status.equals("Suspended")) {
+                if(data.status != null && data.status.equals("Suspended")) {
                     AlertDialog alertDialog = new AlertDialog.Builder(getContext()).create();
 
                     alertDialog.setTitle("Error");
@@ -278,7 +278,12 @@ public class LoginFragment extends Fragment {
                     alertDialog.show();
 
                 } else {
-                    data.type = currentType;
+                    if(currentType == null) {
+                        data.type = "customer";
+                    } else {
+                        data.type = currentType;
+                    }
+
 
                     if(data.authId == null) {
                         mDatabase.child("users").child(id).removeValue();
