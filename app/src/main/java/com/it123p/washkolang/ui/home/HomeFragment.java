@@ -262,7 +262,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Locati
         double lon = location.getLongitude();
 
         homeViewModel.saveUserLocation(location, getAddress(location));
-        if (!runOnce) {
+        if (!runOnce && FirebaseAuth.getInstance().getCurrentUser() != null) {
             homeViewModel.getUserInfo(FirebaseAuth.getInstance().getCurrentUser().getUid(), new ResultHandler<UserInfo>() {
                 @Override
                 public void onSuccess(UserInfo data) {

@@ -30,6 +30,7 @@ public class LoginViewModel extends ViewModel {
         mDatabase.child("users").child(userId).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
+
                 UserInfo info = snapshot.getValue(UserInfo.class);
                 handler.onSuccess(info);
             }

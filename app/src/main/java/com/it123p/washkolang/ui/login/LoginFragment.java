@@ -131,8 +131,8 @@ public class LoginFragment extends Fragment {
         boolean loggedOut = AccessToken.getCurrentAccessToken() == null;
 
         if (!loggedOut) {
-            progress.show();
-            getUserProfile(AccessToken.getCurrentAccessToken());
+//            progress.show();
+//            getUserProfile(AccessToken.getCurrentAccessToken());
         }
     }
 
@@ -141,10 +141,10 @@ public class LoginFragment extends Fragment {
         super.onStart();
 
         FirebaseUser currentUser = mAuth.getCurrentUser();
-        AccessToken currentAccessToken = AccessToken.getCurrentAccessToken();
-        if (currentAccessToken == null && currentUser != null) {
-            currentUser.delete();
-        }
+//        AccessToken currentAccessToken = AccessToken.getCurrentAccessToken();
+//        if (currentAccessToken == null && currentUser != null) {
+//            currentUser.delete();
+//        }
     }
 
     private void handleFacebookAccessToken(AccessToken token) {
@@ -192,21 +192,50 @@ public class LoginFragment extends Fragment {
 
     private void saveToDB(JSONObject object) {
         FirebaseUser firebaseUser = mAuth.getCurrentUser();
-        DatabaseReference databaseUser = mDatabase.child("users").child(mAuth.getUid());
-
-        databaseUser.addListenerForSingleValueEvent(new ValueEventListener() {
+//        DatabaseReference databaseUser = mDatabase.child("users").child(mAuth.getUid());
+//
+//        databaseUser.addListenerForSingleValueEvent(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(@NonNull DataSnapshot snapshot) {
+//                if (snapshot.getValue() == null) {
+//                    //we're new
+//                    addUser(object, "customer");
+//                } else { //user is present
+//
+//                    proceedOldUser((String) snapshot.child("type").getValue());
+//                    if (progress.isShowing()) {
+//                        progress.dismiss();
+//                    }
+//                    goToMain();
+//                }
+//            }
+//
+//            @Override
+//            public void onCancelled(@NonNull DatabaseError error) {
+//
+//            }
+//        });
+        mDatabase.child("users").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (snapshot.getValue() == null) {
-                    //we're new
-                    addUser(object, "customer");
-                } else { //user is present
-
-                    proceedOldUser((String) snapshot.child("type").getValue());
-                    if (progress.isShowing()) {
-                        progress.dismiss();
+                boolean isExisting = false;
+                for(DataSnapshot val : snapshot.getChildren()){
+                    UserInfo userInfo = val.getValue(UserInfo.class);
+                    if(userInfo.email != null) {
+                        if(userInfo.email.equalsIgnoreCase(firebaseUser.getEmail())){
+                            isExisting = true;
+                            proceedOldUser((String) snapshot.child("type").getValue(), val.getKey());
+                            if (progress.isShowing()) {
+                                progress.dismiss();
+                            }
+                            goToMain();
+                            break;
+                        }
                     }
-                    goToMain();
+                }
+
+                if (!isExisting) {
+                    addUser(object, "customer");
                 }
             }
 
@@ -215,7 +244,6 @@ public class LoginFragment extends Fragment {
 
             }
         });
-
     }
 
     private void goToMain() {
@@ -247,13 +275,20 @@ public class LoginFragment extends Fragment {
 
     }
 
-    private void proceedOldUser(String currentType) {
-        FirebaseUser firebaseUser = mAuth.getCurrentUser();;
-        mViewModel.getUserInfo(firebaseUser.getUid(), new ResultHandler<UserInfo>() {
+    private void proceedOldUser(String currentType, String id) {
+        FirebaseUser firebaseUser = mAuth.getCurrentUser();
+
+        mViewModel.getUserInfo(id, new ResultHandler<UserInfo>() {
             @Override
             public void onSuccess(UserInfo data) {
                 data.type = currentType;
-                mDatabase.child("users").child(data.authId).setValue(data);
+
+                if(data.authId == null) {
+                    mDatabase.child("users").child(id).removeValue();
+                }
+
+                data.authId = firebaseUser.getUid();
+                mDatabase.child("users").child(mAuth.getUid()).setValue(data);
 
                 if (progress.isShowing()) {
                     progress.dismiss();

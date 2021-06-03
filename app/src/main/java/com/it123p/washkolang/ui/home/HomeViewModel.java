@@ -56,7 +56,9 @@ public class HomeViewModel extends ViewModel {
 
     public void saveUserLocation(Location location, String address) {
         FirebaseUser firebaseUser = mAuth.getCurrentUser();
-
+        if(firebaseUser == null) {
+            return;
+        }
         mDatabase.child("users").child(firebaseUser.getUid()).child("lat").setValue(location.getLatitude());
         mDatabase.child("users").child(firebaseUser.getUid()).child("long").setValue(location.getLongitude());
 
